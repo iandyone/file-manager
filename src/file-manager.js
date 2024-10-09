@@ -1,6 +1,6 @@
-import path from 'path';
 import { ErrorService } from './services/errors.js';
 import { DirService } from './services/directory.js';
+import { FileService } from './services/files.js';
 
 export class FileManager {
   constructor() {
@@ -11,10 +11,17 @@ export class FileManager {
       up: this.cmdHandlerUp.bind(this),
       cd: this.cmdHandlerCd.bind(this),
       ls: this.cmdHandlerLs.bind(this),
+      cat: this.cmdHandlerCat.bind(this),
+      add: this.cmdHandlerAdd.bind(this),
+      rn: this.cmdHandlerRn.bind(this),
+      cp: this.cmdHandlerCp.bind(this),
+      rm: this.cmdHandlerRm.bind(this),
+      mv: this.cmdHandlerMv.bind(this),
     };
 
     this.dirService = new DirService(process.env.HOME);
     this.errorService = new ErrorService();
+    this.fileService = new FileService();
 
     this.sayHi();
     this.printCurrentDir();
@@ -62,11 +69,62 @@ export class FileManager {
     this.dirService.up();
   }
 
+  getFilesPaths(sourceFileDir, newFileDir) {
+    const filePath = this.dirService.getFileDir(sourceFileDir);
+    const filename = this.dirService.getFileName(filePath);
+
+    if (!newFileDir) {
+      return { filePath, filename };
+    }
+
+    const workDir = this.dirService.getWorkDir(filePath);
+    const newFilePath = this.dirService.getPath(workDir, newFileDir);
+
+    return { filePath, filename, newFilePath, workDir };
+  }
+
   async cmdHandlerCd(directory) {
     await this.dirService.cd(directory);
   }
 
   async cmdHandlerLs() {
     await this.dirService.ls();
+  }
+
+  async cmdHandlerCat(path) {
+    const filePath = await this.dirService.getFileDir(path);
+
+    await this.fileService.readFile(filePath);
+  }
+
+  async cmdHandlerAdd(fileName) {
+    const filePath = await this.dirService.getFileDir(fileName);
+
+    await this.fileService.addFile(filePath);
+  }
+
+  async cmdHandlerRn(fileDir, newFileName) {
+    const { filePath, newFilePath } = this.getFilesPaths(fileDir, newFileName);
+
+    return await this.fileService.renameFile(filePath, newFilePath);
+  }
+
+  async cmdHandlerCp(fileDir, newFileDir) {
+    const { filePath, filename } = this.getFilesPaths(fileDir);
+
+    return await this.fileService.copyFile(filePath, newFileDir, filename);
+  }
+
+  async cmdHandlerRm(fileDir) {
+    const { filePath } = this.getFilesPaths(fileDir);
+
+    return await this.fileService.removeFile(filePath);
+  }
+
+  async cmdHandlerMv(fileDir, newFileDir) {
+    const { filePath, filename } = this.getFilesPaths(fileDir);
+    const { filePath: newFilePath } = this.getFilesPaths(newFileDir);
+
+    return await this.fileService.moveFile(filePath, newFilePath, filename);
   }
 }

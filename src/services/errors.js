@@ -1,8 +1,4 @@
-export class ErrorService extends Error {
-  constructor() {
-    super();
-  }
-
+export class ErrorService {
   sendInvalidInputErrorMessage() {
     process.stdout.write('Invalid input\n');
   }

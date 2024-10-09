@@ -10,6 +10,40 @@ export class DirService {
     this.errorService = new ErrorService();
   }
 
+  getFileDir(filePath) {
+    return filePath.startsWith(this.homeDir) ? filePath.trim() : path.join(this.currentDir, filePath).trim();
+  }
+
+  getWorkDir(filePath) {
+    return path.join(filePath, '../');
+  }
+
+  getPath(root, ...args) {
+    return path.join(root, ...args);
+  }
+
+  getFileName(filePath) {
+    const { base } = path.parse(filePath);
+
+    return base;
+  }
+
+  // async getFilePathFromHomeDir(filePath) {
+  //   try {
+  //     const filePath = path.join(this.homeDir, fileName).trim();
+
+  //     const stat = await fs.stat(filePath);
+
+  //     if (await stat.isDirectory()) {
+  //       return filePath;
+  //     }
+
+  //     return null;
+  //   } catch (error) {
+  //     this.errorService.sendOperationFailedErrorMessage();
+  //   }
+  // }
+
   up() {
     if (this.currentDir === this.homeDir) {
       return;
@@ -21,12 +55,9 @@ export class DirService {
   async cd(directory = '') {
     try {
       const newDir = path.join(this.currentDir, directory).trim();
+      await fs.access(newDir);
 
-      const stat = await fs.stat(newDir);
-
-      if (await stat.isDirectory()) {
-        this.currentDir = newDir;
-      }
+      this.currentDir = newDir;
     } catch (error) {
       this.errorService.sendInvalidInputErrorMessage();
     }
