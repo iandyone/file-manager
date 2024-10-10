@@ -22,27 +22,11 @@ export class DirService {
     return path.join(root, ...args);
   }
 
-  parseFilePath(filePath) {
+  parse(filePath) {
     const fileData = path.parse(filePath);
 
     return fileData;
   }
-
-  // async getFilePathFromHomeDir(filePath) {
-  //   try {
-  //     const filePath = path.join(this.homeDir, fileName).trim();
-
-  //     const stat = await fs.stat(filePath);
-
-  //     if (await stat.isDirectory()) {
-  //       return filePath;
-  //     }
-
-  //     return null;
-  //   } catch (error) {
-  //     this.errorService.sendOperationFailedErrorMessage();
-  //   }
-  // }
 
   upFromCurrentDirectory() {
     if (this.currentDir === this.homeDir) {

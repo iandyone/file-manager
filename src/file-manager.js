@@ -1,6 +1,8 @@
 import { ErrorService } from './services/errors.js';
 import { DirService } from './services/directory.js';
 import { FileService } from './services/files.js';
+import { CompressService } from './services/compress.js';
+
 export class FileManager {
   constructor() {
     this.username = this.getArgsDataByKey('--username');
@@ -16,12 +18,14 @@ export class FileManager {
       cp: this.cmdHandlerCp.bind(this),
       rm: this.cmdHandlerRm.bind(this),
       mv: this.cmdHandlerMv.bind(this),
+      compress: this.cmdHandlerCompress.bind(this),
+      decompress: this.cmdHandlerDecompress.bind(this),
     };
 
-    // this.dirService = new DirService(process.env.HOME);
-    this.dirService = new DirService(`${process.env.HOME}/Projects/RSS/file-manager`);
+    this.dirService = new DirService(process.env.HOME);
     this.errorService = new ErrorService();
     this.fileService = new FileService();
+    this.compressService = new CompressService();
 
     this.sayHi();
     this.printCurrentDir();
@@ -34,8 +38,7 @@ export class FileManager {
       try {
         await commandHandler(...args);
       } catch (error) {
-        // this.errorService.sendOperationFailedErrorMessage();
-        console.log(error);
+        this.errorService.sendOperationFailedErrorMessage();
       }
     } else {
       this.errorService.sendInvalidInputErrorMessage();
@@ -71,8 +74,7 @@ export class FileManager {
 
   getBaseAndNewFilesPaths(baseFileDir, newFileDir) {
     const filePath = this.dirService.getFilePathFromHomeDir(baseFileDir);
-
-    const baseFileData = this.dirService.parseFilePath(filePath);
+    const baseFileData = this.dirService.parse(filePath);
 
     if (!newFileDir) {
       return { filePath, baseFileData };
@@ -122,10 +124,27 @@ export class FileManager {
     return await this.fileService.removeFile(filePath);
   }
 
-  async cmdHandlerMv(fileDir, newFileDir) {
+  async cmdHandlerMv(fileDir, newFileDir = './') {
     const { filePath, baseFileData } = this.getBaseAndNewFilesPaths(fileDir);
-    const { filePath: newFilePath } = this.getBaseAndNewFilesPaths(newFileDir);
+    const { filePath: destinationPath } = this.getBaseAndNewFilesPaths(newFileDir);
 
-    return await this.fileService.moveFile(filePath, newFilePath, baseFileData.base);
+    return await this.fileService.moveFile(filePath, destinationPath, baseFileData.base);
+  }
+
+  async cmdHandlerCompress(fileDir, compressedFileDir = './') {
+    const { filePath, baseFileData } = this.getBaseAndNewFilesPaths(fileDir, compressedFileDir);
+
+    const compressedFilePath = this.dirService.join(compressedFileDir.trim(), `${baseFileData.name}.gz`);
+
+    const destinationPath = this.dirService.getFilePathFromHomeDir(compressedFilePath);
+
+    return await this.compressService.compressFile(filePath, destinationPath);
+  }
+
+  async cmdHandlerDecompress(fileDir, compressedFileDir) {
+    const { filePath } = this.getBaseAndNewFilesPaths(fileDir, compressedFileDir);
+    const destinationPath = this.dirService.getFilePathFromHomeDir(compressedFileDir);
+
+    return await this.compressService.decompressFile(filePath, destinationPath);
   }
 }
