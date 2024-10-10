@@ -8,8 +8,8 @@ process.stdin.on('data', async (cmd) => {
   const [command, ...args] = cmd.toString().split(' ');
 
   await fileManager.cmd(command.trim(), ...args);
-  fileManager.printCurrentDir();
 
+  fileManager.printCurrentDir();
   process.stdin.resume();
 });
 

@@ -4,8 +4,21 @@ import stream from 'stream/promises';
 
 export class FileService {
   async readByStream(filePath) {
-    const readableStream = fs.createReadStream(filePath, { encoding: 'utf8' });
-    await readableStream.pipe(process.stdout);
+    process.stdin.pause();
+
+    return new Promise((resolve) => {
+      const readableStream = fs.createReadStream(filePath, { encoding: 'utf8' });
+
+      readableStream.on('data', (chunk) => {
+        process.stdout.write(chunk);
+      });
+
+      readableStream.on('end', () => {
+        process.stdout.write('\n');
+        process.stdin.resume();
+        resolve();
+      });
+    });
   }
 
   async readFile(filePath) {
