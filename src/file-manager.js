@@ -3,13 +3,14 @@ import { DirService } from './services/directories.js';
 import { FileService } from './services/files.js';
 import { CompressService } from './services/compress.js';
 import { HashServise } from './services/hash.js';
+import { OperationSystemService } from './services/os.js';
 
 export class FileManager {
   constructor() {
     this.username = this.getArgsDataByKey('--username');
 
-    this.commands = {
-      ['.exit']: this.stopFileManagerProcess.bind(this),
+    this.handlers = {
+      '.exit': this.stopFileManagerProcess.bind(this),
       up: this.cmdHandlerUp.bind(this),
       cd: this.cmdHandlerCd.bind(this),
       ls: this.cmdHandlerLs.bind(this),
@@ -22,28 +23,28 @@ export class FileManager {
       compress: this.cmdHandlerCompress.bind(this),
       decompress: this.cmdHandlerDecompress.bind(this),
       hash: this.cmdHandlerHash.bind(this),
+      os: this.cmdHandlerOs.bind(this),
     };
 
-    // this.dirService = new DirService(process.env.HOME);
-    this.dirService = new DirService(`${process.env.HOME}/Projects/RSS/file-manager`);
+    this.dirService = new DirService(process.env.HOME);
     this.errorService = new ErrorService();
     this.fileService = new FileService();
     this.compressService = new CompressService();
     this.hashService = new HashServise();
+    this.osService = new OperationSystemService();
 
     this.sayHi();
     this.printCurrentDir();
   }
 
   async cmd(cmd, ...args) {
-    const commandHandler = this.commands[cmd];
+    const commandHandler = this.handlers[cmd];
 
     if (commandHandler) {
       try {
         await commandHandler(...args);
       } catch (error) {
-        // this.errorService.sendOperationFailedErrorMessage();
-        console.log(error);
+        this.errorService.sendOperationFailedErrorMessage();
       }
     } else {
       this.errorService.sendInvalidInputErrorMessage();
@@ -89,6 +90,14 @@ export class FileManager {
     const newFilePath = this.dirService.join(baseFilePath, newFileDir);
 
     return { filePath, baseFileData, baseFilePath, newFilePath };
+  }
+
+  cmdHandlerOs(arg) {
+    const systemData = this.osService.getOperationSystemInfo(arg);
+
+    if (systemData) {
+      process.stdout.write(`\n${systemData}\n\n`);
+    }
   }
 
   async cmdHandlerHash(pathToFile) {
