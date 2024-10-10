@@ -10,22 +10,22 @@ export class DirService {
     this.errorService = new ErrorService();
   }
 
-  getFileDir(filePath) {
+  getFilePathFromHomeDir(filePath) {
     return filePath.startsWith(this.homeDir) ? filePath.trim() : path.join(this.currentDir, filePath).trim();
   }
 
-  getWorkDir(filePath) {
+  getFileLocation(filePath) {
     return path.join(filePath, '../');
   }
 
-  getPath(root, ...args) {
+  join(root, ...args) {
     return path.join(root, ...args);
   }
 
-  getFileName(filePath) {
-    const { base } = path.parse(filePath);
+  parseFilePath(filePath) {
+    const fileData = path.parse(filePath);
 
-    return base;
+    return fileData;
   }
 
   // async getFilePathFromHomeDir(filePath) {
@@ -44,7 +44,7 @@ export class DirService {
   //   }
   // }
 
-  up() {
+  upFromCurrentDirectory() {
     if (this.currentDir === this.homeDir) {
       return;
     }
@@ -52,7 +52,7 @@ export class DirService {
     this.currentDir = path.resolve(this.currentDir, '../');
   }
 
-  async cd(directory = '') {
+  async changeDirectory(directory = '') {
     try {
       const newDir = path.join(this.currentDir, directory).trim();
       await fs.access(newDir);

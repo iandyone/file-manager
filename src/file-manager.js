@@ -1,7 +1,6 @@
 import { ErrorService } from './services/errors.js';
 import { DirService } from './services/directory.js';
 import { FileService } from './services/files.js';
-
 export class FileManager {
   constructor() {
     this.username = this.getArgsDataByKey('--username');
@@ -19,7 +18,8 @@ export class FileManager {
       mv: this.cmdHandlerMv.bind(this),
     };
 
-    this.dirService = new DirService(process.env.HOME);
+    // this.dirService = new DirService(process.env.HOME);
+    this.dirService = new DirService(`${process.env.HOME}/Projects/RSS/file-manager`);
     this.errorService = new ErrorService();
     this.fileService = new FileService();
 
@@ -34,8 +34,8 @@ export class FileManager {
       try {
         await commandHandler(...args);
       } catch (error) {
-        this.errorService.sendOperationFailedErrorMessage();
-        // console.log(error);
+        // this.errorService.sendOperationFailedErrorMessage();
+        console.log(error);
       }
     } else {
       this.errorService.sendInvalidInputErrorMessage();
@@ -66,25 +66,26 @@ export class FileManager {
   }
 
   cmdHandlerUp() {
-    this.dirService.up();
+    this.dirService.upFromCurrentDirectory();
   }
 
-  getFilesPaths(sourceFileDir, newFileDir) {
-    const filePath = this.dirService.getFileDir(sourceFileDir);
-    const filename = this.dirService.getFileName(filePath);
+  getBaseAndNewFilesPaths(baseFileDir, newFileDir) {
+    const filePath = this.dirService.getFilePathFromHomeDir(baseFileDir);
+
+    const baseFileData = this.dirService.parseFilePath(filePath);
 
     if (!newFileDir) {
-      return { filePath, filename };
+      return { filePath, baseFileData };
     }
 
-    const workDir = this.dirService.getWorkDir(filePath);
-    const newFilePath = this.dirService.getPath(workDir, newFileDir);
+    const baseFilePath = this.dirService.getFileLocation(filePath);
+    const newFilePath = this.dirService.join(baseFilePath, newFileDir);
 
-    return { filePath, filename, newFilePath, workDir };
+    return { filePath, baseFileData, baseFilePath, newFilePath };
   }
 
   async cmdHandlerCd(directory) {
-    await this.dirService.cd(directory);
+    await this.dirService.changeDirectory(directory);
   }
 
   async cmdHandlerLs() {
@@ -92,39 +93,39 @@ export class FileManager {
   }
 
   async cmdHandlerCat(path) {
-    const filePath = await this.dirService.getFileDir(path);
+    const filePath = await this.dirService.getFilePathFromHomeDir(path);
 
     await this.fileService.readFile(filePath);
   }
 
   async cmdHandlerAdd(fileName) {
-    const filePath = await this.dirService.getFileDir(fileName);
+    const filePath = await this.dirService.getFilePathFromHomeDir(fileName);
 
     await this.fileService.addFile(filePath);
   }
 
   async cmdHandlerRn(fileDir, newFileName) {
-    const { filePath, newFilePath } = this.getFilesPaths(fileDir, newFileName);
+    const { filePath, newFilePath } = this.getBaseAndNewFilesPaths(fileDir, newFileName);
 
     return await this.fileService.renameFile(filePath, newFilePath);
   }
 
   async cmdHandlerCp(fileDir, newFileDir) {
-    const { filePath, filename } = this.getFilesPaths(fileDir);
+    const { filePath, baseFileData } = this.getBaseAndNewFilesPaths(fileDir);
 
-    return await this.fileService.copyFile(filePath, newFileDir, filename);
+    return await this.fileService.copyFile(filePath, newFileDir, baseFileData.base);
   }
 
   async cmdHandlerRm(fileDir) {
-    const { filePath } = this.getFilesPaths(fileDir);
+    const { filePath } = this.getBaseAndNewFilesPaths(fileDir);
 
     return await this.fileService.removeFile(filePath);
   }
 
   async cmdHandlerMv(fileDir, newFileDir) {
-    const { filePath, filename } = this.getFilesPaths(fileDir);
-    const { filePath: newFilePath } = this.getFilesPaths(newFileDir);
+    const { filePath, baseFileData } = this.getBaseAndNewFilesPaths(fileDir);
+    const { filePath: newFilePath } = this.getBaseAndNewFilesPaths(newFileDir);
 
-    return await this.fileService.moveFile(filePath, newFilePath, filename);
+    return await this.fileService.moveFile(filePath, newFilePath, baseFileData.base);
   }
 }
