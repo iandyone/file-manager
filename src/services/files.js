@@ -3,9 +3,13 @@ import path from 'path';
 import stream from 'stream/promises';
 
 export class FileService {
-  async readFile(filePath) {
+  async readByStream(filePath) {
     const readableStream = fs.createReadStream(filePath, { encoding: 'utf8' });
     await readableStream.pipe(process.stdout);
+  }
+
+  async readFile(filePath) {
+    return await fs.promises.readFile(filePath, { encoding: 'utf-8' });
   }
 
   async addFile(filePath) {

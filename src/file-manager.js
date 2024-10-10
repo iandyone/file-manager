@@ -1,7 +1,8 @@
 import { ErrorService } from './services/errors.js';
-import { DirService } from './services/directory.js';
+import { DirService } from './services/directories.js';
 import { FileService } from './services/files.js';
 import { CompressService } from './services/compress.js';
+import { HashServise } from './services/hash.js';
 
 export class FileManager {
   constructor() {
@@ -20,12 +21,15 @@ export class FileManager {
       mv: this.cmdHandlerMv.bind(this),
       compress: this.cmdHandlerCompress.bind(this),
       decompress: this.cmdHandlerDecompress.bind(this),
+      hash: this.cmdHandlerHash.bind(this),
     };
 
-    this.dirService = new DirService(process.env.HOME);
+    // this.dirService = new DirService(process.env.HOME);
+    this.dirService = new DirService(`${process.env.HOME}/Projects/RSS/file-manager`);
     this.errorService = new ErrorService();
     this.fileService = new FileService();
     this.compressService = new CompressService();
+    this.hashService = new HashServise();
 
     this.sayHi();
     this.printCurrentDir();
@@ -38,7 +42,8 @@ export class FileManager {
       try {
         await commandHandler(...args);
       } catch (error) {
-        this.errorService.sendOperationFailedErrorMessage();
+        // this.errorService.sendOperationFailedErrorMessage();
+        console.log(error);
       }
     } else {
       this.errorService.sendInvalidInputErrorMessage();
@@ -86,6 +91,15 @@ export class FileManager {
     return { filePath, baseFileData, baseFilePath, newFilePath };
   }
 
+  async cmdHandlerHash(pathToFile) {
+    const { filePath } = this.getBaseAndNewFilesPaths(pathToFile);
+    const fileData = await this.fileService.readFile(filePath);
+    const hash = this.hashService.hash(fileData);
+
+    process.stdout.write(hash);
+    process.stdout.write('\n');
+  }
+
   async cmdHandlerCd(directory) {
     await this.dirService.changeDirectory(directory);
   }
@@ -97,7 +111,7 @@ export class FileManager {
   async cmdHandlerCat(path) {
     const filePath = await this.dirService.getFilePathFromHomeDir(path);
 
-    await this.fileService.readFile(filePath);
+    await this.fileService.readByStream(filePath);
   }
 
   async cmdHandlerAdd(fileName) {
@@ -106,16 +120,16 @@ export class FileManager {
     await this.fileService.addFile(filePath);
   }
 
-  async cmdHandlerRn(fileDir, newFileName) {
-    const { filePath, newFilePath } = this.getBaseAndNewFilesPaths(fileDir, newFileName);
+  async cmdHandlerRn(pathToFile, newFileName) {
+    const { filePath, newFilePath } = this.getBaseAndNewFilesPaths(pathToFile, newFileName);
 
     return await this.fileService.renameFile(filePath, newFilePath);
   }
 
-  async cmdHandlerCp(fileDir, newFileDir) {
-    const { filePath, baseFileData } = this.getBaseAndNewFilesPaths(fileDir);
+  async cmdHandlerCp(pathToFile, pathToNewDir) {
+    const { filePath, baseFileData } = this.getBaseAndNewFilesPaths(pathToFile);
 
-    return await this.fileService.copyFile(filePath, newFileDir, baseFileData.base);
+    return await this.fileService.copyFile(filePath, pathToNewDir, baseFileData.base);
   }
 
   async cmdHandlerRm(fileDir) {
