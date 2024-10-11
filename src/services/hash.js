@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 
-export class HashServise {
+export class HashService {
   hash(data) {
     const hashData = crypto.createHash('sha256').update(data);
     return hashData.digest('hex');

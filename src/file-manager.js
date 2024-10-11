@@ -2,12 +2,12 @@ import { ErrorService } from './services/errors.js';
 import { PathService } from './services/paths.js';
 import { FileService } from './services/files.js';
 import { CompressService } from './services/compress.js';
-import { HashServise } from './services/hash.js';
+import { HashService } from './services/hash.js';
 import { OperationSystemService } from './services/os.js';
 
 export class FileManager {
   constructor() {
-    this.username = this.getArgsDataByKey('--username') ?? 'Anonymous';
+    this.username = this.getArgsDataByKey('--username') || 'Anonymous';
 
     this.handlers = {
       cd: this.cmdHandlerCd.bind(this),
@@ -27,7 +27,7 @@ export class FileManager {
     };
 
     this.fileService = new FileService();
-    this.hashService = new HashServise();
+    this.hashService = new HashService();
     this.pathService = new PathService();
     this.errorService = new ErrorService();
     this.compressService = new CompressService();
@@ -38,7 +38,7 @@ export class FileManager {
   }
 
   getArgsDataByKey(key) {
-    const data = process.argv.splice(2).find((arg) => arg.startsWith(key));
+    const data = process.argv.slice(2).find((arg) => arg.startsWith(key));
 
     return data ? data.replace(`${key}=`, '') : null;
   }
@@ -60,10 +60,6 @@ export class FileManager {
     process.exit();
   }
 
-  cmdHandlerUp() {
-    this.pathService.upFromCurrentDirectory();
-  }
-
   getBaseAndNewFilesPaths(baseFileDir, newFileDir) {
     const filePath = this.pathService.getFilePathFromHomeDir(baseFileDir);
     const baseFileData = this.pathService.parse(filePath);
@@ -78,20 +74,31 @@ export class FileManager {
     return { filePath, baseFileData, baseFilePath, newFilePath };
   }
 
-  cmdHandlerOs(arg) {
-    const systemData = this.osService.getOperationSystemInfo(arg);
+  cmdHandlerUp() {
+    this.pathService.upFromCurrentDirectory();
+  }
 
-    if (systemData) {
-      process.stdout.write(`\n${systemData}\n\n`);
+  cmdHandlerOs(arg) {
+    const data = this.osService.getOperationSystemInfo(arg);
+
+    if (arg === '--cpus') {
+      process.stdout.write(`\nAmount: ${data.amount}\n`);
+      console.table(data.cpusData);
+    } else {
+      console.log(data);
     }
   }
 
   async cmd(cmd, ...args) {
-    const commandHandler = this.handlers[cmd];
+    if (!cmd) {
+      return;
+    }
 
-    if (commandHandler) {
+    const operationHandler = this.handlers[cmd];
+
+    if (operationHandler) {
       try {
-        await commandHandler(...args);
+        await operationHandler(...args);
       } catch (error) {
         this.errorService.sendOperationFailedErrorMessage();
       }
@@ -105,7 +112,9 @@ export class FileManager {
   }
 
   async cmdHandlerLs() {
-    await this.pathService.ls();
+    const tableData = await this.pathService.getFilesListFromCurrentDir();
+
+    console.table(tableData);
   }
 
   async cmdHandlerCat(pathToFile) {
@@ -162,19 +171,26 @@ export class FileManager {
   async cmdHandlerCompress(pathToFile, pathToDestination = './') {
     const { filePath, baseFileData } = this.getBaseAndNewFilesPaths(pathToFile, pathToDestination);
 
-    const destinationPath = this.pathService.join(pathToDestination.trim(), `${baseFileData.base}.br`);
-
+    const destinationPath = this.pathService.join(pathToDestination, `${baseFileData.base}.br`);
     const compressedFilePath = this.pathService.getFilePathFromHomeDir(destinationPath);
 
     return await this.compressService.compressFile(filePath, compressedFilePath);
   }
 
   async cmdHandlerDecompress(pathToFile, pathToDestination = './') {
-    const { name: fileName } = this.pathService.parse(pathToFile);
-    const pathToDestinationWithFileName = this.pathService.join(pathToDestination.trim(), fileName);
+    const { name: decompressedFileName } = this.pathService.parse(pathToFile);
 
-    const { filePath: compressedFilePath } = this.getBaseAndNewFilesPaths(pathToFile, pathToDestinationWithFileName);
+    const compressedFilePath = this.pathService.getFilePathFromHomeDir(pathToFile);
+    const decompressedFile = this.pathService.getFilePathFromHomeDir(pathToDestination);
+    const isCompressedFileExists = await this.pathService.isFile(compressedFilePath);
 
+    const { ext: isPathToDestinationContainsFileName } = await this.pathService.parse(decompressedFile);
+
+    if (isCompressedFileExists && isPathToDestinationContainsFileName) {
+      return await this.compressService.decompressFile(compressedFilePath, pathToDestination);
+    }
+
+    const pathToDestinationWithFileName = this.pathService.join(pathToDestination, decompressedFileName);
     const decompressedFilePath = this.pathService.getFilePathFromHomeDir(pathToDestinationWithFileName);
 
     return await this.compressService.decompressFile(compressedFilePath, decompressedFilePath);

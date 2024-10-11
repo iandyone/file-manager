@@ -15,7 +15,7 @@ export class OperationSystemService {
   }
 
   getOperationSystemInfo(arg) {
-    const commandHandler = this.handlers[arg.trim()];
+    const commandHandler = this.handlers[arg];
 
     if (commandHandler) {
       return commandHandler();
@@ -31,10 +31,10 @@ export class OperationSystemService {
   getCPUs() {
     const cpusData = os.cpus().map(({ model, speed }) => ({
       model,
-      speed: `${speed / 1000}GHz`,
+      speed: `${speed / 1000} GHz`,
     }));
 
-    return JSON.stringify({ amount: cpusData.length, cpusData });
+    return { amount: cpusData.length, cpusData };
   }
 
   getHomeDir() {

@@ -40,13 +40,12 @@ export class FileService {
   }
 
   async renameFile(filePath, fileName) {
-    await fs.promises.rename(filePath.trim(), fileName.trim());
+    await fs.promises.rename(filePath, fileName);
   }
 
   async copyFile(filePath, pathTo, fileName) {
-    const readableStream = fs.createReadStream(path.resolve(filePath).trim());
-
-    const writableStream = fs.createWriteStream(path.resolve(pathTo.trim(), fileName).trim());
+    const readableStream = fs.createReadStream(path.resolve(filePath));
+    const writableStream = fs.createWriteStream(path.resolve(pathTo, fileName));
 
     await stream.pipeline(readableStream, writableStream);
   }
@@ -58,9 +57,5 @@ export class FileService {
   async moveFile(filePath, pathTo, fileName) {
     await this.copyFile(filePath, pathTo, fileName);
     await this.removeFile(filePath);
-  }
-
-  async checkIsFileExitts(filePath) {
-    return await fs.promises.stat(filePath);
   }
 }
