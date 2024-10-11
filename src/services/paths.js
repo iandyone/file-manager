@@ -2,9 +2,9 @@ import path from 'path';
 import fs from 'fs/promises';
 import { ErrorService } from './errors.js';
 
-export class DirService {
-  constructor(homeDir) {
-    this.homeDir = homeDir;
+export class PathService {
+  constructor() {
+    this.homeDir = process.env.HOME;
     this.currentDir = path.resolve();
 
     this.errorService = new ErrorService();

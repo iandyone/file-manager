@@ -1,5 +1,5 @@
 import { ErrorService } from './services/errors.js';
-import { DirService } from './services/directories.js';
+import { PathService } from './services/paths.js';
 import { FileService } from './services/files.js';
 import { CompressService } from './services/compress.js';
 import { HashServise } from './services/hash.js';
@@ -7,11 +7,11 @@ import { OperationSystemService } from './services/os.js';
 
 export class FileManager {
   constructor() {
-    this.username = this.getArgsDataByKey('--username');
+    this.username = this.getArgsDataByKey('--username') ?? 'Anonymous';
 
     this.handlers = {
-      up: this.cmdHandlerUp.bind(this),
       cd: this.cmdHandlerCd.bind(this),
+      up: this.cmdHandlerUp.bind(this),
       ls: this.cmdHandlerLs.bind(this),
       rn: this.cmdHandlerRn.bind(this),
       cp: this.cmdHandlerCp.bind(this),
@@ -26,15 +26,64 @@ export class FileManager {
       '.exit': this.stopFileManagerProcess.bind(this),
     };
 
-    this.dirService = new DirService(process.env.HOME);
-    this.errorService = new ErrorService();
     this.fileService = new FileService();
-    this.compressService = new CompressService();
     this.hashService = new HashServise();
+    this.pathService = new PathService();
+    this.errorService = new ErrorService();
+    this.compressService = new CompressService();
     this.osService = new OperationSystemService();
 
     this.sayHi();
     this.printCurrentDir();
+  }
+
+  getArgsDataByKey(key) {
+    const data = process.argv.splice(2).find((arg) => arg.startsWith(key));
+
+    return data ? data.replace(`${key}=`, '') : null;
+  }
+
+  sayHi() {
+    process.stdout.write(`\nWelcome to the File Manager, ${this.username}!\n\n`);
+  }
+
+  sayBye() {
+    process.stdout.write(`\nThank you for using File Manager, ${this.username}, goodbye!\n\n`);
+  }
+
+  printCurrentDir() {
+    process.stdout.write(`You are currently in ${this.pathService.currentDir}: `);
+  }
+
+  stopFileManagerProcess() {
+    this.sayBye();
+    process.exit();
+  }
+
+  cmdHandlerUp() {
+    this.pathService.upFromCurrentDirectory();
+  }
+
+  getBaseAndNewFilesPaths(baseFileDir, newFileDir) {
+    const filePath = this.pathService.getFilePathFromHomeDir(baseFileDir);
+    const baseFileData = this.pathService.parse(filePath);
+
+    if (!newFileDir) {
+      return { filePath, baseFileData };
+    }
+
+    const baseFilePath = this.pathService.getFileLocation(filePath);
+    const newFilePath = this.pathService.join(baseFilePath, newFileDir);
+
+    return { filePath, baseFileData, baseFilePath, newFilePath };
+  }
+
+  cmdHandlerOs(arg) {
+    const systemData = this.osService.getOperationSystemInfo(arg);
+
+    if (systemData) {
+      process.stdout.write(`\n${systemData}\n\n`);
+    }
   }
 
   async cmd(cmd, ...args) {
@@ -51,71 +100,22 @@ export class FileManager {
     }
   }
 
-  getArgsDataByKey(key) {
-    const data = process.argv.splice(2).find((arg) => arg.startsWith(key));
-
-    return data ? data.replace(`${key}=`, '') : 'Anonymous';
-  }
-
-  sayHi() {
-    process.stdout.write(`\nWelcome to the File Manager, ${this.username}!\n\n`);
-  }
-
-  sayBye() {
-    process.stdout.write(`\nThank you for using File Manager, ${this.username}, goodbye!\n\n`);
-  }
-
-  printCurrentDir() {
-    process.stdout.write(`You are currently in ${this.dirService.currentDir}: `);
-  }
-
-  stopFileManagerProcess() {
-    this.sayBye();
-    process.exit();
-  }
-
-  cmdHandlerUp() {
-    this.dirService.upFromCurrentDirectory();
-  }
-
-  getBaseAndNewFilesPaths(baseFileDir, newFileDir) {
-    const filePath = this.dirService.getFilePathFromHomeDir(baseFileDir);
-    const baseFileData = this.dirService.parse(filePath);
-
-    if (!newFileDir) {
-      return { filePath, baseFileData };
-    }
-
-    const baseFilePath = this.dirService.getFileLocation(filePath);
-    const newFilePath = this.dirService.join(baseFilePath, newFileDir);
-
-    return { filePath, baseFileData, baseFilePath, newFilePath };
-  }
-
-  cmdHandlerOs(arg) {
-    const systemData = this.osService.getOperationSystemInfo(arg);
-
-    if (systemData) {
-      process.stdout.write(`\n${systemData}\n\n`);
-    }
-  }
-
-  async cmdHandlerCd(directory) {
-    return await this.dirService.changeDirectory(directory);
+  async cmdHandlerCd(pathToDirectory) {
+    return await this.pathService.changeDirectory(pathToDirectory);
   }
 
   async cmdHandlerLs() {
-    await this.dirService.ls();
+    await this.pathService.ls();
   }
 
-  async cmdHandlerCat(path) {
-    const filePath = await this.dirService.getFilePathFromHomeDir(path);
+  async cmdHandlerCat(pathToFile) {
+    const filePath = await this.pathService.getFilePathFromHomeDir(pathToFile);
 
     await this.fileService.readByStream(filePath);
   }
 
-  async cmdHandlerAdd(fileName) {
-    const filePath = await this.dirService.getFilePathFromHomeDir(fileName);
+  async cmdHandlerAdd(newFileName) {
+    const filePath = await this.pathService.getFilePathFromHomeDir(newFileName);
 
     await this.fileService.addFile(filePath);
   }
@@ -130,23 +130,23 @@ export class FileManager {
     const { filePath, baseFileData } = this.getBaseAndNewFilesPaths(pathToFile);
     const { filePath: newPath } = this.getBaseAndNewFilesPaths(pathToNewDir);
 
-    const isValidBasePath = await this.dirService.isFile(filePath);
-    const isValidNewPath = await this.dirService.isDirectory(newPath);
+    const isValidBasePath = await this.pathService.isFile(filePath);
+    const isValidNewPath = await this.pathService.isDirectory(newPath);
 
     if (isValidBasePath && isValidNewPath) {
       return await this.fileService.copyFile(filePath, pathToNewDir, baseFileData.base);
     }
   }
 
-  async cmdHandlerRm(fileDir) {
-    const { filePath } = this.getBaseAndNewFilesPaths(fileDir);
+  async cmdHandlerRm(pathToFile) {
+    const { filePath } = this.getBaseAndNewFilesPaths(pathToFile);
 
     return await this.fileService.removeFile(filePath);
   }
 
-  async cmdHandlerMv(fileDir, newFileDir = './') {
-    const { filePath, baseFileData } = this.getBaseAndNewFilesPaths(fileDir);
-    const { filePath: destinationPath } = this.getBaseAndNewFilesPaths(newFileDir);
+  async cmdHandlerMv(pathToFile, pathToNewDir) {
+    const { filePath, baseFileData } = this.getBaseAndNewFilesPaths(pathToFile);
+    const { filePath: destinationPath } = this.getBaseAndNewFilesPaths(pathToNewDir);
 
     return await this.fileService.moveFile(filePath, destinationPath, baseFileData.base);
   }
@@ -159,20 +159,24 @@ export class FileManager {
     process.stdout.write(`\n${hash}\n\n`);
   }
 
-  async cmdHandlerCompress(fileDir, compressedFileDir = './') {
-    const { filePath, baseFileData } = this.getBaseAndNewFilesPaths(fileDir, compressedFileDir);
+  async cmdHandlerCompress(pathToFile, pathToDestination = './') {
+    const { filePath, baseFileData } = this.getBaseAndNewFilesPaths(pathToFile, pathToDestination);
 
-    const compressedFilePath = this.dirService.join(compressedFileDir.trim(), `${baseFileData.name}.gz`);
+    const destinationPath = this.pathService.join(pathToDestination.trim(), `${baseFileData.base}.br`);
 
-    const destinationPath = this.dirService.getFilePathFromHomeDir(compressedFilePath);
+    const compressedFilePath = this.pathService.getFilePathFromHomeDir(destinationPath);
 
-    return await this.compressService.compressFile(filePath, destinationPath);
+    return await this.compressService.compressFile(filePath, compressedFilePath);
   }
 
-  async cmdHandlerDecompress(fileDir, compressedFileDir) {
-    const { filePath } = this.getBaseAndNewFilesPaths(fileDir, compressedFileDir);
-    const destinationPath = this.dirService.getFilePathFromHomeDir(compressedFileDir);
+  async cmdHandlerDecompress(pathToFile, pathToDestination = './') {
+    const { name: fileName } = this.pathService.parse(pathToFile);
+    const pathToDestinationWithFileName = this.pathService.join(pathToDestination.trim(), fileName);
 
-    return await this.compressService.decompressFile(filePath, destinationPath);
+    const { filePath: compressedFilePath } = this.getBaseAndNewFilesPaths(pathToFile, pathToDestinationWithFileName);
+
+    const decompressedFilePath = this.pathService.getFilePathFromHomeDir(pathToDestinationWithFileName);
+
+    return await this.compressService.decompressFile(compressedFilePath, decompressedFilePath);
   }
 }

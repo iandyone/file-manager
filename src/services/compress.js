@@ -6,7 +6,7 @@ export class CompressService {
   async compressFile(filePath, compressedFilePath) {
     await streams.pipeline(
       fs.createReadStream(filePath),
-      zlib.createGzip(),
+      zlib.createBrotliCompress(),
       fs.createWriteStream(compressedFilePath)
     );
   }
@@ -14,7 +14,7 @@ export class CompressService {
   async decompressFile(filePath, compressedFilePath) {
     await streams.pipeline(
       fs.createReadStream(filePath),
-      zlib.createGunzip(),
+      zlib.createBrotliDecompress(),
       fs.createWriteStream(compressedFilePath)
     );
   }
