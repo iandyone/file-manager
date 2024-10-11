@@ -1,8 +1,13 @@
 import fs from 'fs';
 import path from 'path';
 import stream from 'stream/promises';
+import { ErrorService } from './errors.js';
 
 export class FileService {
+  constructor() {
+    this.errorService = new ErrorService();
+  }
+
   async readByStream(filePath) {
     process.stdin.pause();
 
@@ -16,6 +21,11 @@ export class FileService {
       readableStream.on('end', () => {
         process.stdout.write('\n');
         process.stdin.resume();
+        resolve();
+      });
+
+      readableStream.on('error', () => {
+        this.errorService.sendOperationFailedErrorMessage();
         resolve();
       });
     });

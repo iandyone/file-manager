@@ -5,7 +5,7 @@ import { ErrorService } from './errors.js';
 export class DirService {
   constructor(homeDir) {
     this.homeDir = homeDir;
-    this.currentDir = homeDir;
+    this.currentDir = path.resolve();
 
     this.errorService = new ErrorService();
   }
@@ -36,12 +36,37 @@ export class DirService {
     this.currentDir = path.resolve(this.currentDir, '../');
   }
 
+  async isDirectory(directory) {
+    const fileStat = await fs.stat(directory);
+
+    return fileStat.isDirectory();
+  }
+
+  async isFile(directory) {
+    const fileStat = await fs.stat(directory);
+
+    return fileStat.isFile();
+  }
+
   async changeDirectory(directory = '') {
     try {
       const newDir = path.join(this.currentDir, directory).trim();
+
       await fs.access(newDir);
 
-      this.currentDir = newDir;
+      const isFolder = await this.isDirectory(newDir);
+
+      if (isFolder) {
+        if (directory.startsWith(this.homeDir)) {
+          this.currentDir = directory;
+          return;
+        }
+
+        this.currentDir = newDir;
+        return;
+      }
+
+      this.errorService.sendInvalidInputErrorMessage();
     } catch (error) {
       this.errorService.sendInvalidInputErrorMessage();
     }
